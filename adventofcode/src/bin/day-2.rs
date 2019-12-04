@@ -1,16 +1,21 @@
 use adventofcode::read_input_file;
 
 #[derive(PartialEq)]
-enum Operation{
-    Add,
-    Mult
-}
-
-#[derive(PartialEq)]
 enum Opcode {
-    Operation(Operation),
+    Add,
+    Mult,
     ProgramEnd,
     InvalidOpcode
+}
+
+impl Opcode {
+    fn get_size(&self) -> usize {
+        match *self {
+            Opcode::Add => 4,
+            Opcode::Mult => 4,
+            _ => 0
+        }
+    }
 }
 
 fn opcode_add(lhs : i32, rhs : i32) -> i32 {
@@ -23,36 +28,53 @@ fn opcode_mult(lhs : i32, rhs : i32) -> i32 {
 
 fn get_opcode(opcode : &i32) -> Opcode {
     match opcode{
-        1 => Opcode::Operation(Operation::Add),
-        2 => Opcode::Operation(Operation::Mult),
+        1 => Opcode::Add,
+        2 => Opcode::Mult,
         99 => Opcode::ProgramEnd,
         _ => Opcode::InvalidOpcode
     }
 }
 
-fn run_operation(operation : Operation, args: &[i32]) -> i32{
-    match operation {
-        Operation::Add => opcode_add(args[0], args[1]),
-        Operation::Mult => opcode_mult(args[0], args[1])
+
+fn run_opcode(opcode: Opcode, idx: usize, memory : &mut Vec<i32>){
+    let op_size = opcode.get_size();
+    let args : Vec<i32> = memory[idx+1..idx+op_size-1].iter()
+        .map(|x| memory[*x as usize])
+        .collect();
+
+    match opcode {
+        Opcode::Add =>{
+            let result_idx = memory[idx + op_size-1];
+            memory[result_idx as usize] = opcode_add(args[0], args[1])
+        },
+        Opcode::Mult => {
+            let result_idx = memory[idx + op_size-1];
+
+            memory[result_idx as usize] = opcode_mult(args[0], args[1])
+        },
+        _ => panic!()
     }
 }
 
 fn run_program(program : &mut Vec<i32>){
-    for idx in (0..program.len()).step_by(4){
+    let mut idx = 0;
+
+    while idx < program.len(){
         let el = &program[idx];
+        let opcode = get_opcode(el);
 
-        match get_opcode(el){
-            Opcode::Operation(operation) => {
-                let args : Vec<i32> = program[idx+1..idx+3].iter().map(|x| program[*x as usize]).collect();
-                let result_index = program[idx+3];
-
-                program[result_index as usize] = run_operation(operation, &args[..]);
-            },
+        match opcode{
             Opcode::ProgramEnd => {
                 return;
             },
             Opcode::InvalidOpcode => {
                 panic!(format!("Received invalid opcode {}", el))
+            }
+            _ => {
+                let step = opcode.get_size();
+                run_opcode(opcode, idx, program);
+
+                idx += step;
             }
         }
     }
@@ -68,6 +90,7 @@ fn collect_input(file : &str) -> Vec<i32> {
 
 fn main(){
     let mut program_part_one = collect_input("day-2-part-1-input");
+
     program_part_one[1] = 12;
     program_part_one[2] = 2;
 
@@ -77,32 +100,22 @@ fn main(){
 
 #[cfg(test)]
 mod day_2_tests{
-    use crate::{get_opcode, Opcode, Operation, run_program, run_operation};
+    use crate::{get_opcode, Opcode, run_program, run_opcode};
 
     #[test]
     fn process_add_opcode(){
         match  get_opcode(&1){
-            Opcode::Operation(operation) => assert!(operation == Operation::Add),
+           Opcode::Add => assert!(true),
             _ => panic!()
         }
-
-        assert_eq!(
-            run_operation(Operation::Add, &vec![2,2]),
-            4
-        )
     }
 
     #[test]
     fn process_mult_opcode(){
         match  get_opcode(&2){
-            Opcode::Operation(operation) => assert!(operation == Operation::Mult),
+            Opcode::Mult => assert!(true),
             _ => panic!()
         }
-
-        assert_eq!(
-            run_operation(Operation::Mult, &vec![6,5]),
-            30
-        )
     }
 
     #[test]
