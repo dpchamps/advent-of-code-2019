@@ -27,34 +27,27 @@ impl Opcode {
         }
     }
 
-    fn introspect(&self, stack_pointer : usize, memory : &Vec<i32>) -> String{
+    fn introspect(&self, program_counter: usize, memory : &Vec<i32>) -> String{
         let self_size = self.get_size();
 
         match * self {
             Opcode::ProgramEnd|Opcode::InvalidOpcode => format!("()"),
             Opcode::Add => {
-                let arg1 = memory[memory[stack_pointer+1] as usize];
-                let arg2 = memory[memory[stack_pointer+2] as usize];
+                let arg1 = memory[memory[program_counter +1] as usize];
+                let arg2 = memory[memory[program_counter +2] as usize];
 
-                format!("({}+{}={})", arg1, arg2, opcode_add(arg1, arg2))
+                format!("({}+{}={})", arg1, arg2, arg1+arg2)
             }
             Opcode::Mult => {
-                let arg1 = memory[memory[stack_pointer+1] as usize];
-                let arg2 = memory[memory[stack_pointer+2] as usize] ;
+                let arg1 = memory[memory[program_counter +1] as usize];
+                let arg2 = memory[memory[program_counter +2] as usize] ;
 
-                format!("({}*{}={})", arg1, arg2, opcode_mult(arg1, arg2))
+                format!("({}*{}={})", arg1, arg2, arg1*arg2)
             }
         }
     }
 }
 
-fn opcode_add(lhs : i32, rhs : i32) -> i32 {
-    lhs + rhs
-}
-
-fn opcode_mult(lhs : i32, rhs : i32) -> i32 {
-    lhs * rhs
-}
 
 fn get_opcode(opcode : &i32) -> Opcode {
     match opcode{
@@ -74,19 +67,19 @@ fn get_opcode_result(opcode : Opcode, args : Option<&[i32]> ) -> i32 {
 }
 
 
-fn run_opcode(opcode: Opcode, stack_pointer: usize, memory : &mut Vec<i32>){
+fn run_opcode(opcode: Opcode, program_counter: usize, memory : &mut Vec<i32>){
     let op_size = opcode.get_size();
-    let args : Vec<i32> = memory[stack_pointer +1..stack_pointer +op_size-1].iter()
+    let args : Vec<i32> = memory[program_counter +1..program_counter +op_size-1].iter()
         .map(|x| memory[*x as usize])
         .collect();
 
     match opcode {
         Opcode::Add =>{
-            let result_idx = memory[stack_pointer + op_size-1];
+            let result_idx = memory[program_counter + op_size-1];
             memory[result_idx as usize] = get_opcode_result(opcode, Some(&args[..]))
         },
         Opcode::Mult => {
-            let result_idx = memory[stack_pointer + op_size-1];
+            let result_idx = memory[program_counter + op_size-1];
 
             memory[result_idx as usize] = get_opcode_result(opcode, Some(&args[..]))
         },
@@ -95,10 +88,10 @@ fn run_opcode(opcode: Opcode, stack_pointer: usize, memory : &mut Vec<i32>){
 }
 
 fn run_program(program : &mut Vec<i32>){
-    let mut stack_pointer = 0;
+    let mut program_counter = 0;
 
-    while stack_pointer < program.len(){
-        let el = &program[stack_pointer];
+    while program_counter < program.len(){
+        let el = &program[program_counter];
         let opcode = get_opcode(el);
 
         match opcode{
@@ -110,50 +103,50 @@ fn run_program(program : &mut Vec<i32>){
             }
             _ => {
                 let step = opcode.get_size();
-                run_opcode(opcode, stack_pointer, program);
+                run_opcode(opcode, program_counter, program);
 
-                stack_pointer += step;
+                program_counter += step;
             }
         }
     }
 }
 
 fn disassemble(program : &mut Vec<i32>) -> String {
-    let mut stack_pointer = 0;
+    let mut program_counter = 0;
     let mut assembly= format!("");
 
-    while stack_pointer < program.len(){
-        let el = &program[stack_pointer];
+    while program_counter < program.len(){
+        let el = &program[program_counter];
         let opcode = get_opcode(el);
         let size = opcode.get_size();
 
         match opcode {
             Opcode::InvalidOpcode => {
-                assembly = format!("{}{}", assembly, opcode.disassemble(Some(&[stack_pointer as i32, *el])));
+                assembly = format!("{}{}", assembly, opcode.disassemble(Some(&[program_counter as i32, *el])));
                 return assembly;
             }
             Opcode::ProgramEnd => {
-                assembly = format!("{}{}:{}", assembly, stack_pointer, opcode.disassemble(None));
+                assembly = format!("{}{}:{}", assembly, program_counter, opcode.disassemble(None));
                 return assembly;
             }
             _ => {
                 let op_size = opcode.get_size();
-                let args : Vec<i32> = program[stack_pointer +1..stack_pointer +op_size].iter().map(|x| *x).collect();
+                let args : Vec<i32> = program[program_counter +1..program_counter +op_size].iter().map(|x| *x).collect();
 
                 assembly = format!(
                     "{}{}:{}={}",
-                   assembly,
-                    stack_pointer,
-                   opcode.disassemble(Some(&args)),
-                   opcode.introspect(stack_pointer, &program)
+                    assembly,
+                    program_counter,
+                    opcode.disassemble(Some(&args)),
+                    opcode.introspect(program_counter, &program)
                 );
 
-                run_opcode(opcode, stack_pointer, program);
+                run_opcode(opcode, program_counter, program);
             }
         }
 
         assembly += "\n";
-        stack_pointer += size;
+        program_counter += size;
     }
 
     assembly
@@ -271,10 +264,10 @@ fn run_program_2(){
     program[2] = 0;
 
     let mut address_resolutions : HashMap<i32, (Opcode, i32, i32)> = HashMap::new();
-    let mut stack_pointer : usize = 0;
+    let mut program_counter: usize = 0;
 
     loop{
-        let instruction = program[stack_pointer];
+        let instruction = program[program_counter];
         let opcode = get_opcode(&instruction);
 
         let step = match opcode{
@@ -288,12 +281,12 @@ fn run_program_2(){
             break;
         }
 
-        let arg1 = program[stack_pointer+1];
-        let arg2 = program[stack_pointer+2];
-        let indexer = program[stack_pointer +3];
+        let arg1 = program[program_counter +1];
+        let arg2 = program[program_counter +2];
+        let indexer = program[program_counter +3];
 
         address_resolutions.insert(indexer, (opcode, arg1, arg2));
-        stack_pointer += step;
+        program_counter += step;
     }
 
     if let Some((noun,_)) = derive(1, program_result, 0, &address_resolutions, &program){
