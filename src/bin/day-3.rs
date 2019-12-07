@@ -75,8 +75,16 @@ impl Coord {
     fn cross(&self, other : &Coord) -> f32 {
         self.x * other.y - self.y * other.x
     }
+
+    fn max(&self) -> f32 {
+        f32::max(
+            self.x.abs(),
+            self.y.abs()
+        )
+    }
 }
 
+#[derive(PartialEq, Copy, Clone, Debug)]
 struct Segment{
     a : Coord,
     b : Coord
@@ -115,6 +123,19 @@ impl Segment{
         }
 
         None
+    }
+
+    fn get_steps(&self) -> f32 {
+        self.a.sub(&self.b).max()
+    }
+
+    fn on_segment(&self, coord: &Coord) -> bool {
+        (
+                coord.x <= f32::max(self.a.x, self.b.x) &&
+                coord.x >= f32::min(self.a.x, self.b.x) &&
+                coord.y <= f32::max(self.a.y, self.b.y) &&
+                coord.y >= f32::min(self.a.y, self.b.y)
+        )
     }
 }
 
@@ -183,17 +204,41 @@ fn collect_segments(coord_list : &Vec<Coord>) -> Vec<Segment> {
     })
 }
 
+fn count_steps_to_point(segment_list : &Vec<Segment>, point : &Coord) -> f32 {
+    let mut steps = segment_list[0].a.max();
+    let mut step_list = vec![steps];
 
-fn find_intersections(coord_list_a : &Vec<Coord>, coord_list_b : &Vec<Coord>) -> Vec<Coord> {
+    for segment in segment_list{
+        if segment.on_segment(point){
+            let sub_seg = Segment::new(segment.a, point.clone());
+            step_list.push(sub_seg.get_steps());
+            steps += sub_seg.get_steps();
+            break;
+        }else{
+            step_list.push(segment.get_steps());
+            steps += segment.get_steps();
+        }
+
+    }
+
+    steps
+}
+
+
+fn find_intersections(coord_list_a : &Vec<Coord>, coord_list_b : &Vec<Coord>) -> Vec<(Coord, f32)> {
     let segment_list_a = collect_segments(&coord_list_a);
     let segment_list_b = collect_segments(&coord_list_b);
 
-    let mut intersections : Vec<Coord> = vec![];
+    let mut intersections : Vec<(Coord, f32)> = vec![];
 
     for seg_a in &segment_list_a{
         for seg_b in &segment_list_b{
+
             if let Some(intersection) = seg_a.get_intersection_point(seg_b){
-                intersections.push(intersection)
+                let steps_a = count_steps_to_point(&segment_list_a, &intersection);
+                let steps_b = count_steps_to_point(&segment_list_b, &intersection);
+
+                intersections.push((intersection, steps_a + steps_b ))
             }
         }
     }
@@ -201,15 +246,34 @@ fn find_intersections(coord_list_a : &Vec<Coord>, coord_list_b : &Vec<Coord>) ->
     intersections
 }
 
+fn find_fewest_steps_intersection(intersections : Vec<(Coord, f32)>) -> (Option<Coord>, f32){
+    let mut fewest_steps = std::f32::INFINITY;
+    let mut closest_intersection = None;
+
+    for (coord, steps) in intersections {
+        if steps < fewest_steps {
+            fewest_steps = steps;
+            closest_intersection = Some(coord);
+        }
+    }
+
+    (closest_intersection, fewest_steps)
+}
+
 fn run_part_1(){
     let (wire_a, wire_b) = get_wires_from_input();
-    let intersections = find_intersections(&wire_a, &wire_b);
+    let intersections = find_intersections(&wire_a, &wire_b).into_iter().map(|(intersection,_)|intersection).collect();
 
-    println!("Answer: {:?}", Coord::zero().closest_to(&intersections));
+    println!("Answer part 1: {:?}", Coord::zero().closest_to(&intersections));
 }
 
 fn run_part_2(){
-    unimplemented!()
+    let (wire_a, wire_b) = get_wires_from_input();
+    let intersections = find_intersections(&wire_a, &wire_b);
+    let (_, steps) = find_fewest_steps_intersection(intersections);
+
+
+    println!("Answer part 2: {}", steps);
 }
 
 
@@ -317,6 +381,7 @@ mod day_3_tests{
 
         let intersections = find_intersections(&wire_a, &wire_b);
 
+
         assert_eq!(intersections.len(), 2);
     }
 
@@ -325,11 +390,29 @@ mod day_3_tests{
         let wire_a = create_wire("R75,D30,R83,U83,L12,D49,R71,U7,L72");
         let wire_b = create_wire("U62,R66,U55,R34,D71,R55,D58,R83");
         let intersections = find_intersections(&wire_a, &wire_b);
-        let (_, dist) = Coord::zero().closest_to(&intersections);
+
+
+        let intersection_distances = intersections.into_iter().map(|(intersection,_)| intersection).collect();
+        let (_, dist) = Coord::zero().closest_to(&intersection_distances);
 
         assert_eq!(
             dist,
             159.0
+        )
+    }
+
+    #[test]
+    fn get_fewest_steps_intersection(){
+        let wire_a = create_wire("R75,D30,R83,U83,L12,D49,R71,U7,L72");
+        let wire_b = create_wire("U62,R66,U55,R34,D71,R55,D58,R83");
+        let intersections = find_intersections(&wire_a, &wire_b);
+
+
+        let (_, steps) = find_fewest_steps_intersection(intersections);
+
+        assert_eq!(
+            steps,
+            610.0
         )
     }
 }
