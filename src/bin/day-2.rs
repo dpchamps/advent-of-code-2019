@@ -73,6 +73,8 @@ fn run_opcode(opcode: Opcode, program_counter: usize, memory : &mut Vec<i32>){
         .map(|x| memory[*x as usize])
         .collect();
 
+    println!("{:?}, {:?}", opcode, args);
+
     match opcode {
         Opcode::Add =>{
             let result_idx = memory[program_counter + op_size-1];
@@ -318,7 +320,7 @@ fn main(){
 
 #[cfg(test)]
 mod day_2_tests{
-    use crate::{get_opcode, Opcode, run_program, run_opcode};
+    use crate::{get_opcode, Opcode, run_program, run_opcode, disassemble};
 
     #[test]
     fn process_add_opcode(){
@@ -392,7 +394,7 @@ mod day_2_tests{
         );
 
         program = vec![2,3,0,3,99];
-
+        println!("Here");
         run_program(&mut program);
         assert_eq!(
             program,
