@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 petgraph = "0.4.13"
+permutate = "0.3.2"
+permutohedron = "0.2.4"
