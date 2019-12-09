@@ -43,4 +43,14 @@ mod day_9_tests{
             [2494485073]
         )
     }
+
+    #[test]
+    fn part_two_answer(){
+        let output = part_two();
+
+        assert_eq!(
+            output,
+            [44997]
+        )
+    }
 }
