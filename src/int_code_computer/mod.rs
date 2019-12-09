@@ -167,7 +167,7 @@ impl IntCodeMachine {
 
 
     fn is_valid_pc_state(&self) -> Result<(), &'static str>{
-        if self.program_counter > 0 && self.program_counter < self.program.len(){
+        if self.program_counter > 0 || self.program_counter < self.program.len(){
             return Ok(())
         }
 
@@ -210,7 +210,7 @@ impl IntCodeMachine {
             return Ok(args);
         }
 
-        for (idx, value) in self.program[arg_range].iter().enumerate(){
+        for value in self.program[arg_range].iter(){
             let next_mode = mode % 10;
             let next_arg = match next_mode {
                 0 => OpcodeArg::new(next_mode, self.program[*value as usize], *value),
